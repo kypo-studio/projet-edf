@@ -1,0 +1,8 @@
+# Dépendances minimales pour l'API de prédiction (sans keras/tensorflow)
+fastapi>=0.135.3
+uvicorn>=0.42.0
+xgboost>=3.2.0
+numpy>=2.4.4
+pandas>=2.0.1,<3.0.0
+pydantic>=2.0.0
+scikit-learn>=1.8.0

@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Environnement virtuel
+.venv
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# MLflow
+mlruns/
+mlflow.db
+
+# Données brutes lourdes (XLS source RTE — à télécharger depuis rte-france.com)
+data/eCO2mix_RTE_*.xls
+
+# Modèles archivés (garder uniquement xgb_best.json et features.json)
+models/xgb_2*.json
+
+# OS
+.DS_Store

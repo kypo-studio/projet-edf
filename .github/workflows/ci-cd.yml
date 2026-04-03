@@ -1,0 +1,140 @@
+name: CI/CD — EDF Prediction API
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/edf-api
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Job 1 : Lint & Tests
+# ─────────────────────────────────────────────────────────────────────────────
+jobs:
+  test:
+    name: Lint & Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Installer les dépendances API
+        run: pip install -r requirements-api.txt pytest httpx
+
+      - name: Vérifier la syntaxe (ruff)
+        run: |
+          pip install ruff
+          ruff check main.py
+
+      - name: Tests API (smoke tests)
+        env:
+          # Les artefacts sont nécessaires pour charger le modèle
+          PYTHONPATH: .
+        run: pytest tests/ -v --tb=short
+        # Note : les artefacts models/ et data/ doivent être disponibles.
+        # En production, les télécharger depuis un bucket (voir step ci-dessous).
+        continue-on-error: false
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 2 : Build & Push Docker image
+  # Exécuté uniquement sur la branche main après les tests
+  # ─────────────────────────────────────────────────────────────────────────
+  build-push:
+    name: Build & Push image Docker
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Connexion au registre GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extraire les métadonnées Docker (tags & labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable=true
+            type=semver,pattern={{version}}
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & Push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 3 : Déploiement (exemple : serveur SSH ou Cloud Run)
+  # À adapter selon l'infrastructure cible
+  # ─────────────────────────────────────────────────────────────────────────
+  deploy:
+    name: Déploiement en production
+    runs-on: ubuntu-latest
+    needs: build-push
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+
+    steps:
+      - name: Déploiement via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host:     ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key:      ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd /opt/edf-api
+
+            # Récupérer la nouvelle image
+            echo "${{ secrets.GITHUB_TOKEN }}" | \
+              docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+            # Redémarrage zero-downtime
+            docker compose pull api
+            docker compose up -d --no-deps api
+
+            # Vérification post-déploiement
+            sleep 10
+            curl -f http://localhost:8000/health || \
+              (docker compose logs api --tail=50 && exit 1)
+
+            echo "Déploiement réussi — $(date)"
+
+      - name: Notification de déploiement
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          SHA="${{ github.sha }}"
+          echo "Déploiement $STATUS — commit ${SHA:0:7}"
+          # Ici : intégrer Slack / Teams / email selon les besoins

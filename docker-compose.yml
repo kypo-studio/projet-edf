@@ -1,0 +1,85 @@
+services:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # API de prédiction
+  # ─────────────────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: edf-api
+    ports:
+      - "8000:8000"
+    volumes:
+      # Montage des artefacts en lecture seule (mise à jour sans rebuild)
+      - ./models:/app/models:ro
+      - ./data/daily_consumption.csv:/app/data/daily_consumption.csv:ro
+    environment:
+      - PORT=8000
+      - LOG_LEVEL=info
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - edf-net
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # MLflow — tracking des expériences & registre des modèles
+  # ─────────────────────────────────────────────────────────────────────────
+  mlflow:
+    image: python:3.11-slim
+    container_name: edf-mlflow
+    command: >
+      bash -c "pip install --quiet mlflow &&
+               mlflow server
+               --host 0.0.0.0
+               --port 5000
+               --backend-store-uri sqlite:////mlflow/mlflow.db
+               --default-artifact-root /mlflow/artifacts"
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow_data:/mlflow
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - edf-net
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Prometheus — collecte des métriques (optionnel, profil monitoring)
+  # ─────────────────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: edf-prometheus
+    profiles: ["monitoring"]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=15d"
+    restart: unless-stopped
+    networks:
+      - edf-net
+
+networks:
+  edf-net:
+    driver: bridge
+
+volumes:
+  mlflow_data:
+  prometheus_data:
