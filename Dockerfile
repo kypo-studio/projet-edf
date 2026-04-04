@@ -32,6 +32,7 @@ RUN pip install --no-cache-dir -r requirements-api.txt
 # Code applicatif + artefacts du modèle
 # ─────────────────────────────────────────────────────────────────────────────
 COPY main.py .
+COPY static/ static/
 COPY models/xgb_best.json  models/xgb_best.json
 COPY models/features.json  models/features.json
 COPY data/daily_consumption.csv data/daily_consumption.csv

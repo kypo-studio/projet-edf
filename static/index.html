@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EDF — Prédiction de consommation électrique</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <style>
+    :root {
+      --edf-orange: #ff6600;
+      --edf-blue: #1e3a5f;
+      --edf-light: #f4f6f9;
+      --edf-green: #27ae60;
+      --edf-red: #e74c3c;
+      --radius: 12px;
+      --shadow: 0 2px 16px rgba(0,0,0,.08);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--edf-light);
+      color: #333;
+      min-height: 100vh;
+    }
+
+    /* ─── Header ─── */
+    header {
+      background: linear-gradient(135deg, var(--edf-blue), #2c5282);
+      color: #fff;
+      padding: 1.5rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--shadow);
+    }
+    header h1 { font-size: 1.4rem; font-weight: 600; }
+    header h1 span { color: var(--edf-orange); }
+    .status-badge {
+      display: flex; align-items: center; gap: .5rem;
+      font-size: .85rem; opacity: .9;
+    }
+    .status-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--edf-green);
+      animation: pulse 2s infinite;
+    }
+    .status-dot.error { background: var(--edf-red); animation: none; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .4; }
+    }
+
+    /* ─── Layout ─── */
+    .container {
+      max-width: 1100px;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    @media (max-width: 768px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    /* ─── Cards ─── */
+    .card {
+      background: #fff;
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      box-shadow: var(--shadow);
+    }
+    .card h2 {
+      font-size: 1.1rem;
+      color: var(--edf-blue);
+      margin-bottom: 1rem;
+      display: flex; align-items: center; gap: .5rem;
+    }
+    .card-full { grid-column: 1 / -1; }
+
+    /* ─── Form ─── */
+    .form-group {
+      display: flex; gap: .75rem; align-items: flex-end;
+      flex-wrap: wrap;
+    }
+    .form-group label {
+      font-size: .85rem; color: #666;
+      display: flex; flex-direction: column; gap: .3rem;
+    }
+    input[type="date"] {
+      padding: .55rem .75rem;
+      border: 1.5px solid #d1d5db;
+      border-radius: 8px;
+      font-size: .95rem;
+      transition: border-color .2s;
+    }
+    input[type="date"]:focus {
+      outline: none;
+      border-color: var(--edf-orange);
+    }
+    button {
+      padding: .6rem 1.4rem;
+      border: none;
+      border-radius: 8px;
+      font-size: .95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .btn-primary {
+      background: var(--edf-orange);
+      color: #fff;
+    }
+    .btn-primary:hover { background: #e55b00; transform: translateY(-1px); }
+    .btn-primary:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+
+    /* ─── Result ─── */
+    .result-container { margin-top: 1.25rem; }
+    .result-big {
+      font-size: 2.4rem;
+      font-weight: 700;
+      color: var(--edf-blue);
+      line-height: 1.1;
+    }
+    .result-big small { font-size: 1rem; color: #888; font-weight: 400; }
+    .result-meta {
+      margin-top: .75rem;
+      display: flex; gap: .5rem; flex-wrap: wrap;
+    }
+    .tag {
+      padding: .25rem .7rem;
+      border-radius: 20px;
+      font-size: .8rem;
+      font-weight: 500;
+    }
+    .tag-season  { background: #e8f4fd; color: #2980b9; }
+    .tag-weekend { background: #fdebd0; color: #e67e22; }
+    .tag-holiday { background: #fadbd8; color: #c0392b; }
+    .tag-weekday { background: #d5f5e3; color: #27ae60; }
+
+    .placeholder-text {
+      color: #aaa; font-style: italic; margin-top: 1rem;
+    }
+
+    /* ─── Chart ─── */
+    .chart-wrapper {
+      position: relative;
+      height: 320px;
+      margin-top: 1rem;
+    }
+
+    /* ─── Info grid ─── */
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-top: .75rem;
+    }
+    .info-item {
+      background: var(--edf-light);
+      padding: .75rem 1rem;
+      border-radius: 8px;
+    }
+    .info-item .label { font-size: .75rem; color: #888; text-transform: uppercase; letter-spacing: .5px; }
+    .info-item .value { font-size: 1.05rem; font-weight: 600; color: var(--edf-blue); margin-top: .15rem; }
+
+    /* ─── Loading ─── */
+    .spinner {
+      display: inline-block;
+      width: 18px; height: 18px;
+      border: 2.5px solid #ddd;
+      border-top-color: var(--edf-orange);
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+      vertical-align: middle;
+      margin-right: .5rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Footer ─── */
+    footer {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: #aaa;
+      font-size: .8rem;
+    }
+    footer a { color: var(--edf-orange); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+  <!-- ─── Header ─── -->
+  <header>
+    <h1><span>EDF</span> — Prédiction de consommation électrique</h1>
+    <div class="status-badge">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Connexion...</span>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- ─── Prédiction simple ─── -->
+    <div class="grid">
+      <div class="card">
+        <h2>Prédiction par date</h2>
+        <div class="form-group">
+          <label>
+            Date cible
+            <input type="date" id="singleDate" value="2025-01-15" />
+          </label>
+          <button class="btn-primary" id="btnPredict" onclick="predictSingle()">
+            Prédire
+          </button>
+        </div>
+        <div class="result-container" id="singleResult">
+          <p class="placeholder-text">Sélectionnez une date et cliquez sur Prédire</p>
+        </div>
+      </div>
+
+      <!-- ─── Infos modèle ─── -->
+      <div class="card">
+        <h2>Informations du modèle</h2>
+        <div class="info-grid" id="modelInfo">
+          <div class="info-item">
+            <div class="label">Chargement...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Prédiction plage ─── -->
+    <div class="card card-full">
+      <h2>Prédiction sur une plage de dates</h2>
+      <div class="form-group">
+        <label>
+          Début
+          <input type="date" id="rangeStart" value="2025-01-01" />
+        </label>
+        <label>
+          Fin
+          <input type="date" id="rangeEnd" value="2025-03-31" />
+        </label>
+        <button class="btn-primary" id="btnRange" onclick="predictRange()">
+          Prédire la plage
+        </button>
+      </div>
+      <div class="chart-wrapper">
+        <canvas id="rangeChart"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    MSPR EPSI — RNCP36582 | Données <a href="https://www.rte-france.com/eco2mix" target="_blank">RTE éco2mix</a> |
+    <a href="/docs" target="_blank">API Swagger</a>
+  </footer>
+
+  <!-- ─── Scripts ─── -->
+  <script>
+    const API = '';
+    let rangeChartInstance = null;
+
+    // ─── Health check au chargement ───
+    async function checkHealth() {
+      const dot = document.getElementById('statusDot');
+      const txt = document.getElementById('statusText');
+      try {
+        const r = await fetch(`${API}/health`);
+        const d = await r.json();
+        dot.classList.remove('error');
+        txt.textContent = `En ligne — ${d.history_start} → ${d.history_end}`;
+        loadModelInfo();
+      } catch {
+        dot.classList.add('error');
+        txt.textContent = 'Hors ligne';
+      }
+    }
+
+    // ─── Model info ───
+    async function loadModelInfo() {
+      try {
+        const r = await fetch(`${API}/info`);
+        const d = await r.json();
+        document.getElementById('modelInfo').innerHTML = `
+          <div class="info-item">
+            <div class="label">Modèle</div>
+            <div class="value">XGBoost</div>
+          </div>
+          <div class="info-item">
+            <div class="label">Features</div>
+            <div class="value">${d.features.length}</div>
+          </div>
+          <div class="info-item">
+            <div class="label">Entraînement</div>
+            <div class="value">${d.training_period}</div>
+          </div>
+          <div class="info-item">
+            <div class="label">Test</div>
+            <div class="value">${d.test_period}</div>
+          </div>
+          <div class="info-item">
+            <div class="label">Cible</div>
+            <div class="value">MW / jour</div>
+          </div>
+          <div class="info-item">
+            <div class="label">API</div>
+            <div class="value"><a href="/docs" target="_blank" style="color:var(--edf-orange)">Swagger</a></div>
+          </div>
+        `;
+      } catch { /* ignore */ }
+    }
+
+    // ─── Prédiction simple ───
+    async function predictSingle() {
+      const dateVal = document.getElementById('singleDate').value;
+      const btn = document.getElementById('btnPredict');
+      const container = document.getElementById('singleResult');
+      if (!dateVal) return;
+
+      btn.disabled = true;
+      container.innerHTML = '<p><span class="spinner"></span> Calcul en cours...</p>';
+
+      try {
+        const r = await fetch(`${API}/predict/${dateVal}`);
+        if (!r.ok) {
+          const err = await r.json();
+          container.innerHTML = `<p style="color:var(--edf-red);">${err.detail || 'Erreur'}</p>`;
+          return;
+        }
+        const d = await r.json();
+        const formatted = Math.round(d.predicted_consumption_mw).toLocaleString('fr-FR');
+
+        let tags = `<span class="tag tag-season">${d.season}</span>`;
+        if (d.is_holiday) tags += '<span class="tag tag-holiday">Jour férié</span>';
+        if (d.is_weekend) tags += '<span class="tag tag-weekend">Week-end</span>';
+        if (!d.is_weekend && !d.is_holiday) tags += '<span class="tag tag-weekday">Jour ouvrable</span>';
+
+        container.innerHTML = `
+          <div class="result-big">${formatted} <small>MW</small></div>
+          <div class="result-meta">${tags}</div>
+        `;
+      } catch (e) {
+        container.innerHTML = `<p style="color:var(--edf-red);">Erreur de connexion</p>`;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // ─── Prédiction plage ───
+    async function predictRange() {
+      const start = document.getElementById('rangeStart').value;
+      const end = document.getElementById('rangeEnd').value;
+      const btn = document.getElementById('btnRange');
+      if (!start || !end) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Calcul...';
+
+      try {
+        const r = await fetch(`${API}/predict/range/${start}/${end}`);
+        if (!r.ok) {
+          const err = await r.json();
+          alert(err.detail || 'Erreur');
+          return;
+        }
+        const d = await r.json();
+        renderChart(d.predictions);
+      } catch (e) {
+        alert('Erreur de connexion');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Prédire la plage';
+      }
+    }
+
+    // ─── Chart ───
+    function renderChart(predictions) {
+      const ctx = document.getElementById('rangeChart').getContext('2d');
+      if (rangeChartInstance) rangeChartInstance.destroy();
+
+      const labels = predictions.map(p => p.date);
+      const values = predictions.map(p => p.predicted_consumption_mw);
+
+      // Couleur par saison
+      const seasonColors = {
+        'Hiver':     'rgba(30, 58, 95, 0.8)',
+        'Printemps': 'rgba(39, 174, 96, 0.8)',
+        'Été':       'rgba(255, 102, 0, 0.8)',
+        'Automne':   'rgba(160, 100, 60, 0.8)',
+      };
+      const bgColors = predictions.map(p => seasonColors[p.season] || '#999');
+
+      rangeChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Consommation prédite (MW)',
+            data: values,
+            backgroundColor: bgColors,
+            borderRadius: 2,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                title: (items) => {
+                  const p = predictions[items[0].dataIndex];
+                  let info = p.date;
+                  if (p.is_holiday) info += ' (Férié)';
+                  if (p.is_weekend) info += ' (WE)';
+                  return info;
+                },
+                label: (item) => {
+                  const val = Math.round(item.raw).toLocaleString('fr-FR');
+                  const p = predictions[item.dataIndex];
+                  return `${val} MW — ${p.season}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: {
+                maxTicksLimit: 15,
+                maxRotation: 45,
+                font: { size: 11 }
+              },
+              grid: { display: false }
+            },
+            y: {
+              beginAtZero: false,
+              ticks: {
+                callback: v => (v / 1000).toFixed(0) + 'k',
+                font: { size: 11 }
+              },
+              title: {
+                display: true,
+                text: 'MW moyen journalier'
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // ─── Init ───
+    document.addEventListener('DOMContentLoaded', checkHealth);
+
+    // Enter key sur les inputs de date
+    document.getElementById('singleDate').addEventListener('keydown', e => {
+      if (e.key === 'Enter') predictSingle();
+    });
+  </script>
+
+</body>
+</html>

@@ -4,12 +4,13 @@ import math
 import time
 from contextlib import asynccontextmanager
 from datetime import date, timedelta
-from typing import Optional
 
 import numpy as np
 import pandas as pd
 import xgboost as xgb
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, field_validator
 
 # ---------------------------------------------------------------------------
@@ -38,9 +39,9 @@ def _french_holidays(years: range) -> set:
         g = (b - f + 1) // 3
         h = (19 * a + b - d - g + 15) % 30
         i, k = divmod(c, 4)
-        l = (32 + 2 * e + 2 * i - h - k) % 7
-        m = (a + 11 * h + 22 * l) // 451
-        month, day = divmod(114 + h + l - 7 * m, 31)
+        el = (32 + 2 * e + 2 * i - h - k) % 7
+        m = (a + 11 * h + 22 * el) // 451
+        month, day = divmod(114 + h + el - 7 * m, 31)
         return date(year, month, day + 1)
 
     holidays: set = set()
@@ -102,6 +103,15 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# Servir les fichiers statiques (interface web)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+@app.get("/", include_in_schema=False)
+async def root():
+    """Redirige vers l'interface web."""
+    return FileResponse("static/index.html")
 
 
 # ---------------------------------------------------------------------------
