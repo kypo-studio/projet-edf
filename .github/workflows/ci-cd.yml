@@ -92,44 +92,25 @@ jobs:
   # Job 3 : Déploiement (exemple : serveur SSH ou Cloud Run)
   # À adapter selon l'infrastructure cible
   # ─────────────────────────────────────────────────────────────────────────
-  deploy:
-    name: Déploiement en production
-    runs-on: ubuntu-latest
-    needs: build-push
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    environment: production
-
-    steps:
-      - name: Déploiement via SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host:     ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key:      ${{ secrets.DEPLOY_SSH_KEY }}
-          script: |
-            cd /opt/edf-api
-
-            # Récupérer la nouvelle image
-            echo "${{ secrets.GITHUB_TOKEN }}" | \
-              docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-
-            # Redémarrage zero-downtime
-            docker compose pull api
-            docker compose up -d --no-deps api
-
-            # Vérification post-déploiement
-            sleep 10
-            curl -f http://localhost:8000/health || \
-              (docker compose logs api --tail=50 && exit 1)
-
-            echo "Déploiement réussi — $(date)"
-
-      - name: Notification de déploiement
-        if: always()
-        run: |
-          STATUS="${{ job.status }}"
-          SHA="${{ github.sha }}"
-          echo "Déploiement $STATUS — commit ${SHA:0:7}"
-          # Ici : intégrer Slack / Teams / email selon les besoins
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 3 : Déploiement SSH (désactivé — nécessite un serveur cible)
+  # Pour activer : configurer DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY
+  # dans Settings > Secrets and variables > Actions
+  # ─────────────────────────────────────────────────────────────────────────
+  # deploy:
+  #   name: Déploiement en production
+  #   runs-on: ubuntu-latest
+  #   needs: build-push
+  #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+  #   environment: production
+  #   steps:
+  #     - uses: appleboy/ssh-action@v1
+  #       with:
+  #         host:     ${{ secrets.DEPLOY_HOST }}
+  #         username: ${{ secrets.DEPLOY_USER }}
+  #         key:      ${{ secrets.DEPLOY_SSH_KEY }}
+  #         script: |
+  #           cd /opt/edf-api
+  #           docker compose pull api
+  #           docker compose up -d --no-deps api
+  #           curl -f http://localhost:8000/health
