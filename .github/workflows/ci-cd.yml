@@ -37,6 +37,8 @@ jobs:
 
       - name: Tests API (smoke tests)
         run: pytest tests/ -v --tb=short
+        env:
+          PYTHONPATH: ${{ github.workspace }}
 
   # ─────────────────────────────────────────────────────────────────────────
   # Job 2 : Build & Push Docker image
