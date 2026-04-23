@@ -76,7 +76,7 @@ async def lifespan(app: FastAPI):
     with open("models/features.json") as f:
         features = json.load(f)
 
-    df = pd.read_csv("data/daily_consumption.csv", parse_dates=["Date"])
+    df = pd.read_csv("data/processed/daily_consumption.csv", parse_dates=["Date"])
     df = df.set_index("Date").sort_index()
 
     state["model"]    = model
@@ -336,4 +336,4 @@ def predict_range(start: str, end: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

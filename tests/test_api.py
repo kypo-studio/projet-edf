@@ -5,7 +5,7 @@ Nécessite : pytest, httpx, et les artefacts models/ + data/ présents.
 import pytest
 from fastapi.testclient import TestClient
 
-from main import app
+from app.main import app
 
 
 @pytest.fixture(scope="session")

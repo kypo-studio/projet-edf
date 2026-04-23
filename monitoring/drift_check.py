@@ -15,8 +15,8 @@ Interprétation (standard industrie — crédit scoring, banque) :
 
 Usage :
     python monitoring/drift_check.py \\
-        --reference data/daily_consumption.csv \\
-        --current   data/daily_consumption.csv \\
+        --reference data/processed/daily_consumption.csv \\
+        --current   data/processed/daily_consumption.csv \\
         --ref-end   2021-12-31 \\
         --cur-start 2024-01-01
 
@@ -162,8 +162,8 @@ def run(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Détection de data drift (PSI).")
-    parser.add_argument("--reference", type=Path, default=Path("data/daily_consumption.csv"))
-    parser.add_argument("--current",   type=Path, default=Path("data/daily_consumption.csv"))
+    parser.add_argument("--reference", type=Path, default=Path("data/processed/daily_consumption.csv"))
+    parser.add_argument("--current",   type=Path, default=Path("data/processed/daily_consumption.csv"))
     parser.add_argument("--ref-end",   type=str, default="2021-12-31",
                         help="Fin de la période de référence (train).")
     parser.add_argument("--cur-start", type=str, default="2024-01-01",

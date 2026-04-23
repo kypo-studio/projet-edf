@@ -13,7 +13,7 @@ services:
     volumes:
       # Montage des artefacts en lecture seule (mise à jour sans rebuild)
       - ./models:/app/models:ro
-      - ./data/daily_consumption.csv:/app/data/daily_consumption.csv:ro
+      - ./data/processed/daily_consumption.csv:/app/data/processed/daily_consumption.csv:ro
     environment:
       - PORT=8000
       - LOG_LEVEL=info

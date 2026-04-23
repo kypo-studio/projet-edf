@@ -103,7 +103,7 @@
 
 ### 1.2 Description des services de déploiement
 
-#### API FastAPI (`main.py`)
+#### API FastAPI (`app/main.py`)
 
 | Endpoint | Méthode | Description |
 |---|---|---|
@@ -116,7 +116,7 @@
 **Chargement au démarrage (lifespan) :**
 - `models/xgb_best.json` → modèle XGBoost
 - `models/features.json` → liste ordonnée des features
-- `data/daily_consumption.csv` → historique pour le calcul des lags
+- `data/processed/daily_consumption.csv` → historique pour le calcul des lags
 
 #### Dockerfile
 
@@ -131,7 +131,7 @@ HEALTHCHECK intégré : `curl -f http://localhost:8000/health`
 Push main
   │
   ├── Job 1 : test
-  │     ├── ruff check main.py
+  │     ├── ruff check app/ monitoring/
   │     └── pytest tests/ (10 smoke tests)
   │
   ├── Job 2 : build-push (si tests OK)
@@ -167,7 +167,7 @@ git clone <url-repo> && cd projet-edf
 
 # 2. Vérifier que les artefacts sont présents
 ls models/xgb_best.json models/features.json
-ls data/daily_consumption.csv
+ls data/processed/daily_consumption.csv
 
 # 3. Lancer les services
 docker compose up -d
@@ -278,7 +278,7 @@ open http://localhost:5000
 **Symptôme :** erreurs 422 inhabituelles ou prédictions aberrantes.
 
 ```
-1. Vérifier le format de data/daily_consumption.csv
+1. Vérifier le format de data/processed/daily_consumption.csv
    → colonnes attendues : Date, conso_mean_mw
 2. Si le fichier RTE éco2mix a changé de format :
    a. Mettre à jour la fonction load_rte_file() dans eda.ipynb
@@ -320,4 +320,4 @@ open http://localhost:5000
 | **Sécurité** | Avant mise en prod publique : ajouter `X-API-Key` header ou OAuth2. Ne pas exposer `/docs` en production. |
 | **Secrets** | Stocker les credentials (DEPLOY_SSH_KEY, etc.) dans GitHub Secrets, jamais dans le code. |
 | **Monitoring** | Activer le profil Prometheus (`docker compose --profile monitoring up`) dès que possible. |
-| **Backups** | Sauvegarder quotidiennement `data/daily_consumption.csv` et `models/` vers un stockage externe. |
+| **Backups** | Sauvegarder quotidiennement `data/processed/daily_consumption.csv` et `models/` vers un stockage externe. |

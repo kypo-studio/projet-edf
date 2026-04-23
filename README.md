@@ -31,13 +31,36 @@ La solution est exposée via une **API REST FastAPI** conteneurisée avec Docker
 
 ```
 projet-edf/
+├── app/
+│   ├── __init__.py
+│   └── main.py                              # API FastAPI (production)
+│
+├── notebooks/                               # Travail offline (exploration & entraînement)
+│   ├── 01_eda.ipynb                         # EDA → génère data/processed/daily_consumption.csv
+│   └── 02_modeling.ipynb                    # Entraîne les 7 modèles → models/xgb_best.json
+│
 ├── data/
-│   ├── eCO2mix_RTE_Annuel-Definitif_*.xls   # Données brutes RTE (2012–2024)
-│   └── daily_consumption.csv                # Dataset journalier agrégé (généré)
+│   ├── raw/                                 # XLS bruts RTE éco2mix (gitignored)
+│   │   └── eCO2mix_RTE_*.xls
+│   └── processed/
+│       └── daily_consumption.csv            # Dataset journalier agrégé (sortie EDA)
 │
 ├── models/
 │   ├── xgb_best.json                        # Modèle XGBoost en production
-│   └── features.json                        # Liste ordonnée des features
+│   └── features.json                        # Liste ordonnée des 15 features
+│
+├── monitoring/
+│   ├── drift_check.py                       # Détection data drift (PSI)
+│   └── reports/                             # Rapports JSON (gitignored)
+│
+├── tests/
+│   └── test_api.py                          # 10 smoke tests FastAPI
+│
+├── static/
+│   └── index.html                           # Interface web minimaliste
+│
+├── infra/
+│   └── prometheus.yml                       # Config collecte métriques
 │
 ├── livrables/                               # Documents MSPR (Bloc 3 & 4)
 │   ├── bloc3_1_deploiement_maintenabilite.md
@@ -47,21 +70,33 @@ projet-edf/
 │   ├── bloc4_2_pilotage_agile.md
 │   └── bloc4_3_inclusion_communication.md
 │
-├── tests/
-│   └── test_api.py                          # 10 smoke tests FastAPI
-│
-├── infra/
-│   └── prometheus.yml                       # Config collecte métriques
-│
-├── .github/workflows/
-│   └── ci-cd.yml                            # Pipeline CI/CD GitHub Actions
-│
-├── eda.ipynb                                # Exploration des données (EDA)
-├── modeling.ipynb                           # Entraînement & comparaison des modèles
-├── main.py                                  # API FastAPI
-├── Dockerfile                               # Image Docker (légère, sans keras)
+├── .github/workflows/ci-cd.yml              # Pipeline CI/CD GitHub Actions
+├── Dockerfile                               # Image Docker (API uniquement)
 ├── docker-compose.yml                       # API + MLflow + Prometheus
-└── requirements-api.txt                     # Dépendances minimales de l'API
+├── pyproject.toml
+├── requirements-api.txt                     # Dépendances minimales de l'API
+└── README.md
+```
+
+### Ordre d'exécution du pipeline
+
+```
+XLS RTE (data/raw/)
+   │
+   ▼
+notebooks/01_eda.ipynb           → data/processed/daily_consumption.csv
+   │
+   ▼
+notebooks/02_modeling.ipynb      → models/xgb_best.json + models/features.json
+   │
+   ▼
+app/main.py (FastAPI :8000)      ← consomme models/ + data/processed/
+   │
+   ├── /predict, /predict/range  (prédiction)
+   ├── /metrics                  (Prometheus)
+   └── /health, /info
+
+monitoring/drift_check.py        → rapport PSI hebdomadaire
 ```
 
 ---
@@ -79,8 +114,9 @@ projet-edf/
 # Activer l'environnement virtuel
 source .venv/bin/activate
 
-# Lancer l'API
-python main.py
+# Lancer l'API (depuis la racine du projet)
+python -m app.main
+# ou : uvicorn app.main:app --reload
 ```
 
 API disponible sur **http://localhost:8000**
@@ -110,9 +146,9 @@ source .venv/bin/activate
 jupyter notebook
 ```
 
-Exécuter dans l'ordre :
-1. `eda.ipynb` → génère `data/daily_consumption.csv`
-2. `modeling.ipynb` → génère `models/xgb_best.json`
+Exécuter depuis la racine du projet, dans l'ordre :
+1. `notebooks/01_eda.ipynb` → génère `data/processed/daily_consumption.csv`
+2. `notebooks/02_modeling.ipynb` → génère `models/xgb_best.json` + `models/features.json`
 
 ---
 
@@ -164,7 +200,7 @@ Push main
 Source : [RTE éco2mix](https://www.rte-france.com/eco2mix/la-consommation-delectricite-en-franc)
 Période : 2012–2024 | Granularité brute : 30 min | Agrégation : journalière (MW moyen)
 
-Les fichiers `.xls` bruts ne sont pas versionnés (trop lourds). Télécharger depuis le site RTE et placer dans `data/`.
+Les fichiers `.xls` bruts ne sont pas versionnés (trop lourds). Télécharger depuis le site RTE et placer dans `data/raw/`.
 
 ---
 

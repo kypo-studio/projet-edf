@@ -31,11 +31,11 @@ RUN pip install --no-cache-dir -r requirements-api.txt
 # ─────────────────────────────────────────────────────────────────────────────
 # Code applicatif + artefacts du modèle
 # ─────────────────────────────────────────────────────────────────────────────
-COPY main.py .
+COPY app/ app/
 COPY static/ static/
 COPY models/xgb_best.json  models/xgb_best.json
 COPY models/features.json  models/features.json
-COPY data/daily_consumption.csv data/daily_consumption.csv
+COPY data/processed/daily_consumption.csv data/processed/daily_consumption.csv
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Exposition du port et healthcheck
@@ -48,4 +48,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
 # ─────────────────────────────────────────────────────────────────────────────
 # Démarrage
 # ─────────────────────────────────────────────────────────────────────────────
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]

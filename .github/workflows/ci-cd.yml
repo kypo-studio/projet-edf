@@ -33,7 +33,7 @@ jobs:
         run: pip install -r requirements-api.txt pytest httpx ruff
 
       - name: Lint (ruff)
-        run: ruff check main.py
+        run: ruff check app/ monitoring/
 
       - name: Tests API (smoke tests)
         run: pytest tests/ -v --tb=short

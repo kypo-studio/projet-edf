@@ -41,7 +41,7 @@
 
 | Environnement | Objectif | Infrastructure | Branche Git |
 |---|---|---|---|
-| **Dev** | Développement local | `python main.py` (hot-reload) | `develop` |
+| **Dev** | Développement local | `python -m app.main` (hot-reload) | `develop` |
 | **Test** | Validation CI | Docker + pytest | PR |
 | **Production** | Service en ligne | Docker Compose (VPS/Cloud) | `main` |
 
@@ -89,8 +89,8 @@ Les métriques clés sont surveillées en continu :
 **Data drift** — détection automatisée via PSI (Population Stability Index) :
 ```bash
 python monitoring/drift_check.py \
-    --reference data/daily_consumption.csv --ref-end 2021-12-31 \
-    --current   data/daily_consumption.csv --cur-start 2024-01-01
+    --reference data/processed/daily_consumption.csv --ref-end 2021-12-31 \
+    --current   data/processed/daily_consumption.csv --cur-start 2024-01-01
 ```
 Seuils (standard industrie) : `PSI < 0.10` OK · `0.10–0.25` modéré · `≥ 0.25` critique.
 Déclencheurs de vérification :
@@ -121,7 +121,7 @@ Chaque mois (ou sur déclenchement alerte drift)
 | Artefact | Stratégie de versioning |
 |---|---|
 | Modèle (`xgb_best.json`) | Copie horodatée avant remplacement (`xgb_YYYYMMDD.json`) |
-| API (`main.py`) | Git tags sémantiques (`v1.2.0`) |
+| API (`app/main.py`) | Git tags sémantiques (`v1.2.0`) |
 | Image Docker | Tag `sha-<commit>` + `latest` via GitHub Actions |
 | Features (`features.json`) | Versionné avec le modèle associé |
 
