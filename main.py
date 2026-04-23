@@ -11,6 +11,8 @@ import xgboost as xgb
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from prometheus_client import Counter, Histogram
+from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel, field_validator
 
 # ---------------------------------------------------------------------------
@@ -106,6 +108,27 @@ app = FastAPI(
 
 # Servir les fichiers statiques (interface web)
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# ---------------------------------------------------------------------------
+# Prometheus : expose /metrics (latence, volumétrie, codes HTTP par endpoint)
+# + compteurs métier personnalisés
+# ---------------------------------------------------------------------------
+Instrumentator(
+    should_group_status_codes=True,
+    should_ignore_untemplated=True,
+    excluded_handlers=["/metrics", "/health"],
+).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False, tags=["Monitoring"])
+
+PREDICTIONS_TOTAL = Counter(
+    "edf_predictions_total",
+    "Nombre total de prédictions servies",
+    ["endpoint"],
+)
+PREDICTION_VALUE = Histogram(
+    "edf_prediction_mw",
+    "Distribution des consommations prédites (MW)",
+    buckets=(30000, 40000, 50000, 60000, 70000, 80000, 90000, 100000, 120000),
+)
 
 
 @app.get("/", include_in_schema=False)
@@ -264,6 +287,9 @@ def predict(request: PredictionRequest):
     feat = _build_features(target_date)
     X    = np.array([[feat[f] for f in state["features"]]])
     pred = float(state["model"].predict(X)[0])
+
+    PREDICTIONS_TOTAL.labels(endpoint="/predict").inc()
+    PREDICTION_VALUE.observe(pred)
 
     return PredictionResponse(
         date=request.date,

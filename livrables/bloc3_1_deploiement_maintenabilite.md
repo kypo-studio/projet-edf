@@ -18,7 +18,7 @@
 │                                              │                  │
 │                                              ▼                  │
 │                                      Entraînement ML           │
-│                                  (ANN · RF · DT · KNN · XGB)   │
+│                                  (Ridge · RF · KNN · DT · RBF · XGB) │
 │                                              │                  │
 │                                              ▼                  │
 │                                   models/xgb_best.json         │
@@ -78,14 +78,24 @@ Les métriques clés sont surveillées en continu :
 |---|---|---|---|
 | RMSE glissant 30j | Script Python + MLflow | Quotidien | > 2 500 MW |
 | MAPE glissant 30j | Script Python + MLflow | Quotidien | > 4 % |
-| Latence API (p95) | Logs Uvicorn | Temps réel | > 500 ms |
-| Disponibilité service | HEALTHCHECK Docker | 30s | 3 échecs consécutifs |
+| Latence API (p95) | Prometheus `/metrics` + logs Uvicorn | Temps réel | > 500 ms |
+| Requêtes/s, code HTTP | Prometheus `http_requests_total` | Temps réel | 5xx > 1 % |
+| Prédictions servies | Prometheus `edf_predictions_total` | Temps réel | — |
+| Data drift (PSI) | `monitoring/drift_check.py` | Hebdomadaire | PSI ≥ 0.25 |
+| Disponibilité service | HEALTHCHECK Docker + `/health` | 30 s | 3 échecs consécutifs |
 
 ### 2.3 Détection de dérive (Data Drift / Model Drift)
 
-**Data drift** — déclencheurs de vérification :
+**Data drift** — détection automatisée via PSI (Population Stability Index) :
+```bash
+python monitoring/drift_check.py \
+    --reference data/daily_consumption.csv --ref-end 2021-12-31 \
+    --current   data/daily_consumption.csv --cur-start 2024-01-01
+```
+Seuils (standard industrie) : `PSI < 0.10` OK · `0.10–0.25` modéré · `≥ 0.25` critique.
+Déclencheurs de vérification :
 - Nouveau fichier RTE éco2mix annuel disponible (chaque début d'année)
-- Écart de consommation nationale > 10 % vs même période année précédente
+- PSI ≥ 0.25 sur `conso_mean_mw`, `lag_1`, `lag_7` ou `roll_30`
 - Changement de format des données RTE
 
 **Model drift** — déclencheurs de ré-entraînement :

@@ -21,4 +21,6 @@ dependencies = [
     "xgboost>=3.2.0",
     "xlrd>=2.0.1",
     "openpyxl>=3.1.0",
+    "prometheus-client>=0.20.0",
+    "prometheus-fastapi-instrumentator>=7.0.0",
 ]

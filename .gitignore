@@ -1,27 +1,124 @@
+# ==========================================================
 # Python
+# ==========================================================
 __pycache__/
-*.py[oc]
+*.py[cod]
+*$py.class
+*.so
+.Python
 build/
 dist/
 wheels/
-*.egg-info
+*.egg-info/
+*.egg
+.eggs/
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
 
-# Environnement virtuel
-.venv
+# ==========================================================
+# Environnements virtuels
+# ==========================================================
+.venv/
+venv/
+env/
+ENV/
+.python-version
 
+# ==========================================================
+# Variables d'environnement & secrets
+# ==========================================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# ==========================================================
+# Tests & couverture
+# ==========================================================
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.tox/
+.nox/
+.hypothesis/
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+
+# ==========================================================
 # Jupyter
+# ==========================================================
 .ipynb_checkpoints/
 *.ipynb_checkpoints
+*-checkpoint.ipynb
+modeling.ipynb.bak
 
-# MLflow
+# ==========================================================
+# MLflow / Tracking
+# ==========================================================
 mlruns/
 mlflow.db
+mlartifacts/
 
-# Données brutes lourdes (XLS source RTE — à télécharger depuis rte-france.com)
+# ==========================================================
+# Données (volumineuses, téléchargeables depuis RTE)
+# ==========================================================
 data/eCO2mix_RTE_*.xls
+data/eCO2mix_RTE_*.xlsx
+data/raw/
+*.parquet
+*.feather
 
-# Modèles archivés (garder uniquement xgb_best.json et features.json)
+# ==========================================================
+# Modèles archivés (on garde xgb_best.json + features.json)
+# ==========================================================
 models/xgb_2*.json
+models/*.pkl
+models/*.joblib
+models/*.h5
+!models/xgb_best.json
+!models/features.json
 
+# ==========================================================
+# Monitoring / logs
+# ==========================================================
+*.log
+logs/
+monitoring/reports/
+prometheus_data/
+
+# ==========================================================
+# Docker
+# ==========================================================
+*.pid
+docker-compose.override.yml
+
+# ==========================================================
+# IDE / éditeurs
+# ==========================================================
+.vscode/
+!.vscode/settings.json.example
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+
+# ==========================================================
 # OS
+# ==========================================================
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
